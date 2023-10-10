@@ -21,7 +21,7 @@ RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && apt-get install -y nodejs
 RUN npm install -g pnpm
 
-RUN apt install -y git
+RUN apt install -y git xauth
 
 # create 'dev' user
 RUN mkdir /home/dev
