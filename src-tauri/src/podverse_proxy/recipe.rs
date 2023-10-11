@@ -2,7 +2,7 @@
 
 use std::{convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 
-use futures::TryFutureExt;
+use futures::{future::BoxFuture, TryFutureExt};
 use http_uri::invariant::AbsoluteHttpUri;
 use hyper::{service::make_service_fn, Server};
 use manas_http::service::impl_::NormalValidateTargetUri;
@@ -16,13 +16,13 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tower_http::catch_panic::{CatchPanic, DefaultResponseForPanic};
 use tracing::error;
 
-use crate::pods_server::{
+use crate::podverse_proxy::{
     config::{load_podverse_config, write_podverse_config},
     podverse::build_podset,
 };
 
 use super::{
-    config::{LRcpPodverseConfig, LRcpStorageConfig},
+    config::{LRcpPodConfig, LRcpPodverseConfig},
     lproxy::{LProxyConfig, LProxyService},
     podverse::{LRcpPodServiceFactory, LRcpPodSet, LRcpPodSetService},
 };
@@ -39,7 +39,7 @@ pub struct PodKey(SolidResourceUri, PathBuf);
 
 /// Interface to final recipe.
 pub struct Recipe {
-    app_config: Config,
+    app_config: Arc<Config>,
     session_secret_token: Secret<String>,
     port: OnceCell<u16>,
     endpoint: OnceCell<AbsoluteHttpUri>,
@@ -62,7 +62,7 @@ impl std::fmt::Debug for Recipe {
 
 impl Recipe {
     /// Create a new [`Recipe`].
-    pub async fn new(app_config: Config, dev_mode: bool) -> Result<Self, BoxError> {
+    pub async fn new(app_config: Arc<Config>, dev_mode: bool) -> Result<Self, BoxError> {
         let persisted_podverse_config = load_podverse_config(&app_config)
             .inspect_err(|e| {
                 error!("Error in loading podverse configuration. {e}");
@@ -75,7 +75,7 @@ impl Recipe {
             app_config,
             port: Default::default(),
             endpoint: Default::default(),
-            podverse_config: Arc::new(RwLock::new(LRcpPodverseConfig { storages: vec![] })),
+            podverse_config: Arc::new(RwLock::new(LRcpPodverseConfig { pods: vec![] })),
             service: Arc::new(RwLock::new(Self::_make_svc(
                 Arc::new(LRcpPodSet::new(vec![])),
                 Secret::new(Default::default()),
@@ -131,7 +131,7 @@ impl Recipe {
     }
 
     /// Serve the recipe.
-    pub async fn serve(&self) -> Result<(), BoxError> {
+    pub fn serve(&self) -> BoxFuture<'static, Result<(), BoxError>> {
         let addr = SocketAddr::from(([127, 0, 0, 1], self.port()));
 
         let service_cell = self.service.clone();
@@ -141,7 +141,7 @@ impl Recipe {
         });
 
         let server = Server::bind(&addr).serve(make_svc);
-        Ok(server.await?)
+        Box::pin(server.map_err(|e| e.into()))
     }
 
     /// Reload the config.
@@ -173,14 +173,11 @@ impl Recipe {
     }
 
     /// Provision a new pod.
-    pub async fn provision_pod(
-        &self,
-        new_storage_config: LRcpStorageConfig,
-    ) -> Result<(), BoxError> {
+    pub async fn provision_pod(&self, new_pod_config: LRcpPodConfig) -> Result<(), BoxError> {
         // Construct updated podverse config.
         let mut podverse_config = self.podverse_config.read().await.clone();
         // TODO deduplicate.
-        podverse_config.storages.push(new_storage_config);
+        podverse_config.pods.push(new_pod_config);
 
         // Persist the new podverse config.
         write_podverse_config(&self.app_config, &podverse_config)

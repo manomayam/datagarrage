@@ -45,11 +45,25 @@ pub struct LRcpStorageConfig {
     pub repo: LRcpRepoConfig,
 }
 
+/// Pod config struct.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LRcpPodConfig {
+    /// Storage config.
+    pub storage: LRcpStorageConfig,
+
+    /// Label of the pod.
+    pub label: Option<String>,
+
+    /// Description of the pod.
+    pub description: Option<String>,
+}
+
+
 /// Podverse config struct.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LRcpPodverseConfig {
     /// List of storages.
-    pub storages: Vec<LRcpStorageConfig>,
+    pub pods: Vec<LRcpPodConfig>,
 }
 
 /// Resolve podverse config file path.
@@ -86,7 +100,7 @@ pub async fn load_podverse_config(app_config: &Config) -> Result<LRcpPodverseCon
 
 /// Initialize podverse config.
 pub async fn init_podverse_config(app_config: &Config) -> Result<LRcpPodverseConfig, ConfigError> {
-    let config = LRcpPodverseConfig { storages: vec![] };
+    let config = LRcpPodverseConfig { pods: vec![] };
     write_podverse_config(app_config, &config)
         .await
         .map(|_| config)

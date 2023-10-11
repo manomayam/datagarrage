@@ -9,7 +9,7 @@ use manas_server::podverse::static_::{
 };
 use manas_space::BoxError;
 
-use crate::pods_server::storage::build_storage;
+use crate::podverse_proxy::storage::build_storage;
 
 use super::{config::LRcpPodverseConfig, storage::LocalProxyStorageSetup};
 
@@ -31,11 +31,11 @@ pub type LRcpPodSetService = RcpStaticPodSetService<LocalProxyStorageSetup>;
 /// Build podset from config.
 pub async fn build_podset(config: &LRcpPodverseConfig) -> Result<LRcpPodSet, BoxError> {
     let pods = config
-        .storages
+        .pods
         .iter()
         .cloned()
-        .map(|storage_config| {
-            build_storage(storage_config).map_ok(|storage| {
+        .map(|pod_config| {
+            build_storage(pod_config.storage).map_ok(|storage| {
                 Arc::new(LRcpPod {
                     storage: Arc::new(storage),
                 })

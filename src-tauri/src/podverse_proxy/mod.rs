@@ -1,4 +1,4 @@
-//! I provide backend pod server recipe.
+//! I provide types to represent podverse proxy recipes..
 //!  
 
 pub mod podverse;
