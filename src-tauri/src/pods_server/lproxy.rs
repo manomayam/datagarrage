@@ -16,7 +16,7 @@ use tracing::error;
 #[derive(Debug, Clone)]
 pub struct LProxyConfig {
     /// Secret token.
-    pub secret_token: &'static Secret<String>,
+    pub secret_token: Secret<String>,
 }
 
 /// An implementation of [`HtpService`] that handle local pod proxying.

@@ -29,7 +29,7 @@ pub type LRcpPodSet = RcpStaticPodSet<LocalProxyStorageSetup>;
 pub type LRcpPodSetService = RcpStaticPodSetService<LocalProxyStorageSetup>;
 
 /// Build podset from config.
-pub async fn build_podset(config: LRcpPodverseConfig) -> Result<LRcpPodSet, BoxError> {
+pub async fn build_podset(config: &LRcpPodverseConfig) -> Result<LRcpPodSet, BoxError> {
     let pods = config
         .storages
         .iter()
