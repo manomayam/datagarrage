@@ -1,5 +1,14 @@
+//! A tauri app that manages multiple pod views and serve
+//! solid-os interface over them.
+//!  
+
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![warn(missing_docs)]
+#![deny(unused_qualifications)]
+
+pub mod pods_server;
+
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
