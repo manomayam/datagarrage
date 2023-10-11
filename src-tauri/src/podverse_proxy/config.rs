@@ -6,6 +6,7 @@ use std::{
     path::PathBuf,
 };
 
+use futures::TryFutureExt;
 use http_uri::invariant::HierarchicalTrailingSlashHttpUri;
 use tauri::{api::path::app_config_dir, Config};
 use tracing::{error, info, warn};
@@ -57,7 +58,6 @@ pub struct LRcpPodConfig {
     /// Description of the pod.
     pub description: Option<String>,
 }
-
 
 /// Podverse config struct.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -118,7 +118,8 @@ pub async fn write_podverse_config(
 
     let config_json_bytes = serde_json::to_vec_pretty(podverse_config).expect("Must succeed.");
 
-    tokio::fs::write(&config_file_path, config_json_bytes)
+    tokio::fs::create_dir_all(config_file_path.parent().unwrap())
+        .and_then(|_| tokio::fs::write(&config_file_path, config_json_bytes))
         .await
         .map_err(|e| {
             error!("Error in writing podverse configuration. {e}");

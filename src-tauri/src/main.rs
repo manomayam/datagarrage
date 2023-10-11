@@ -10,24 +10,61 @@
 use std::sync::Arc;
 
 use futures::TryFutureExt;
+use http_uri::invariant::AbsoluteHttpUri;
 use manas_space::BoxError;
-use podverse_proxy::recipe::Recipe;
+use podverse_proxy::{
+    config::{LRcpPodConfig, LRcpPodverseConfig},
+    recipe::Recipe,
+};
+use secrecy::ExposeSecret;
 use state::AppState;
 use tauri::{utils::config::AppUrl, WindowBuilder, WindowUrl};
 use tracing::error;
 
-use crate::command::{
-    podverse_config, podverse_proxy_endpoint, podverse_proxy_secret_token, provision_proxy_pod,
-};
-
-pub mod command;
+// pub mod command;
 pub mod podverse_proxy;
 pub mod state;
 
-// #[tauri::command]
-// fn greet(name: &str) -> String {
-//     format!("Hello, {}! You've been greeted from Rust!", name)
-// }
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+/// Get the podverse proxy endpoint.
+#[tauri::command]
+fn podverse_proxy_endpoint(state: tauri::State<AppState>) -> AbsoluteHttpUri {
+    // "Rama Rama".into()
+    state.podverse.endpoint().clone()
+}
+
+/// Get the podverse proxy secret token.
+#[tauri::command]
+fn podverse_proxy_secret_token(state: tauri::State<AppState>) -> String {
+    state
+        .podverse
+        .session_secret_token()
+        .expose_secret()
+        .clone()
+}
+
+/// Get the podverse config.
+#[tauri::command]
+async fn podverse_config(state: tauri::State<'_, AppState>) -> Result<LRcpPodverseConfig, String> {
+    Ok(state.podverse.podverse_config().await.clone())
+}
+
+/// Provision a new proxy pods.
+#[tauri::command]
+async fn provision_proxy_pod(
+    new_pod_config: LRcpPodConfig,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    state
+        .podverse
+        .provision_pod(new_pod_config)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), BoxError> {
@@ -40,9 +77,13 @@ async fn main() -> Result<(), BoxError> {
     // rewrite the config so the IPC is enabled on this URL
     context.config_mut().build.dist_dir = AppUrl::Url(window_url.clone());
 
-    let podverse_recipe = Recipe::new(Arc::new(context.config().clone()), cfg!(dev))
-        .inspect_err(|e| error!("Error in initializing the recipe. {e}"))
-        .await?;
+    let podverse_recipe = Arc::new(
+        Recipe::new(Arc::new(context.config().clone()), cfg!(dev))
+            .inspect_err(|e| error!("Error in initializing the recipe. {e}"))
+            .await?,
+    );
+
+    // println!("recipe: {:?}", podverse_recipe);
 
     // Span podverse recipe.
     tokio::spawn(podverse_recipe.serve());
@@ -51,13 +92,14 @@ async fn main() -> Result<(), BoxError> {
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_localhost::Builder::new(port).build())
         .manage(AppState {
-            podverse: podverse_recipe,
+            podverse: podverse_recipe.clone(),
         })
         .invoke_handler(tauri::generate_handler![
             podverse_proxy_endpoint,
             podverse_proxy_secret_token,
             podverse_config,
             provision_proxy_pod,
+            greet,
         ])
         .setup(move |app| {
             WindowBuilder::new(
@@ -71,6 +113,7 @@ async fn main() -> Result<(), BoxError> {
             )
             .title("Data garage")
             .build()?;
+
             Ok(())
         })
         .run(context)

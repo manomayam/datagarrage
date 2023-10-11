@@ -1,9 +1,12 @@
 import { invoke } from "@tauri-apps/api/tauri";
 
 async function logPodverseProxyInfo() {
-    let endpoint = await invoke("podverseProxyEndpoint");
-    let secret_token = await invoke("podverseProxySecretToken");
-    let config = await invoke("podverseProxyConfig");
+    console.log("Greet");
+    console.log(invoke("greet", { name: "Rama" }));
+
+    let endpoint = await invoke("podverse_proxy_endpoint");
+    let secret_token = await invoke("podverse_proxy_secret_token");
+    let config = await invoke("podverse_config");
 
     console.log({
         endpoint,

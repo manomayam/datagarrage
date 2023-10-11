@@ -38,6 +38,7 @@ type RcpService = CatchPanic<
 pub struct PodKey(SolidResourceUri, PathBuf);
 
 /// Interface to final recipe.
+#[derive(Clone)]
 pub struct Recipe {
     app_config: Arc<Config>,
     session_secret_token: Secret<String>,
