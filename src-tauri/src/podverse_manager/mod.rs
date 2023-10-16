@@ -1,4 +1,5 @@
-//! I provide wiring of the recipe.
+//! I provide types to represent podverse proxy recipes..
+//!  
 
 use std::{convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 
@@ -16,19 +17,25 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tower_http::catch_panic::{CatchPanic, DefaultResponseForPanic};
 use tracing::error;
 
-use crate::podverse_proxy::{
+use crate::podverse_manager::{
     config::{load_podverse_config, write_podverse_config},
     podverse::build_podset,
 };
 
-use super::{
+use self::{
     config::{LRcpPodConfig, LRcpPodverseConfig},
     lproxy::{LProxyConfig, LProxyService},
     podverse::{LRcpPodServiceFactory, LRcpPodSet, LRcpPodSetService},
 };
 
-/// Type of recipe service
-type RcpService = CatchPanic<
+pub mod config;
+pub mod lproxy;
+pub mod podverse;
+pub mod repo;
+pub mod storage;
+
+/// Type of proxy service
+type ProxyService = CatchPanic<
     LiberalCors<LProxyService<NormalValidateTargetUri<LRcpPodSetService>>>,
     DefaultResponseForPanic,
 >;
@@ -37,31 +44,35 @@ type RcpService = CatchPanic<
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PodKey(SolidResourceUri, PathBuf);
 
-/// Interface to final recipe.
+/// Podverse manager.
 #[derive(Clone)]
-pub struct Recipe {
+pub struct PodverseManager {
     app_config: Arc<Config>,
-    session_secret_token: Secret<String>,
-    port: OnceCell<u16>,
-    endpoint: OnceCell<AbsoluteHttpUri>,
     podverse_config: Arc<RwLock<LRcpPodverseConfig>>,
-    service: Arc<RwLock<RcpService>>,
+    proxy_session_secret_token: Secret<String>,
+    proxy_port: OnceCell<u16>,
+    proxy_endpoint: OnceCell<AbsoluteHttpUri>,
+    proxy_service: Arc<RwLock<ProxyService>>,
     dev_mode: bool,
 }
 
-impl std::fmt::Debug for Recipe {
+impl std::fmt::Debug for PodverseManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Recipe")
+        f.debug_struct("PodverseManager")
             .field("app_config", &self.app_config)
-            .field("session_secret_token", &self.session_secret_token)
-            .field("port", &self.port)
-            .field("endpoint", &self.endpoint)
             .field("podverse_config", &self.podverse_config)
+            .field(
+                "proxy_session_secret_token",
+                &self.proxy_session_secret_token,
+            )
+            .field("proxy_port", &self.proxy_port)
+            .field("proxy_endpoint", &self.proxy_endpoint)
+            .field("dev_mode", &self.dev_mode)
             .finish()
     }
 }
 
-impl Recipe {
+impl PodverseManager {
     /// Create a new [`Recipe`].
     pub async fn new(app_config: Arc<Config>, dev_mode: bool) -> Result<Self, BoxError> {
         let persisted_podverse_config = load_podverse_config(&app_config)
@@ -70,19 +81,19 @@ impl Recipe {
             })
             .await?;
 
-        let session_secret_token = Secret::new(uuid::Uuid::new_v4().to_string());
+        let proxy_session_secret_token = Secret::new(uuid::Uuid::new_v4().to_string());
 
         let this = Self {
             app_config,
-            port: Default::default(),
-            endpoint: Default::default(),
+            proxy_port: Default::default(),
+            proxy_endpoint: Default::default(),
             podverse_config: Arc::new(RwLock::new(LRcpPodverseConfig { pods: vec![] })),
-            service: Arc::new(RwLock::new(Self::_make_svc(
+            proxy_service: Arc::new(RwLock::new(Self::_make_proxy_svc(
                 Arc::new(LRcpPodSet::new(vec![])),
                 Secret::new(Default::default()),
                 dev_mode,
             ))),
-            session_secret_token,
+            proxy_session_secret_token,
             dev_mode,
         };
 
@@ -91,22 +102,22 @@ impl Recipe {
         Ok(this)
     }
 
-    /// Get the recipe's session secret token.
-    pub fn session_secret_token(&self) -> &Secret<String> {
-        &self.session_secret_token
+    /// Get the proxy session secret token.
+    pub fn proxy_session_secret_token(&self) -> &Secret<String> {
+        &self.proxy_session_secret_token
     }
 
-    /// Get the port recipe is running at.
-    pub fn port(&self) -> u16 {
+    /// Get the port proxy is running at.
+    pub fn proxy_port(&self) -> u16 {
         *self
-            .port
+            .proxy_port
             .get_or_init(|| portpicker::pick_unused_port().expect("No ports free"))
     }
 
-    /// Get the recipe endpoint.
-    pub fn endpoint(&self) -> &AbsoluteHttpUri {
-        self.endpoint.get_or_init(|| {
-            format!("http://localhost:{}/", self.port())
+    /// Get the proxy endpoint.
+    pub fn proxy_endpoint(&self) -> &AbsoluteHttpUri {
+        self.proxy_endpoint.get_or_init(|| {
+            format!("http://localhost:{}/", self.proxy_port())
                 .parse()
                 .expect("Must be valid")
         })
@@ -117,11 +128,11 @@ impl Recipe {
         self.podverse_config.read().await
     }
 
-    fn _make_svc(
+    fn _make_proxy_svc(
         podset: Arc<LRcpPodSet>,
         secret_token: Secret<String>,
         dev_mode: bool,
-    ) -> RcpService {
+    ) -> ProxyService {
         CatchPanic::new(LiberalCors::new(LProxyService::new(
             LProxyConfig { secret_token },
             NormalValidateTargetUri::new(LRcpPodSetService {
@@ -131,11 +142,11 @@ impl Recipe {
         )))
     }
 
-    /// Serve the recipe.
-    pub fn serve(&self) -> BoxFuture<'static, Result<(), BoxError>> {
-        let addr = SocketAddr::from(([127, 0, 0, 1], self.port()));
+    /// Serve the proxy.
+    pub fn serve_proxy(&self) -> BoxFuture<'static, Result<(), BoxError>> {
+        let addr = SocketAddr::from(([127, 0, 0, 1], self.proxy_port()));
 
-        let service_cell = self.service.clone();
+        let service_cell = self.proxy_service.clone();
         let make_svc = make_service_fn(move |_conn| {
             let service_cell = service_cell.clone();
             async move { Ok::<_, Infallible>(service_cell.read().await.clone()) }
@@ -158,13 +169,16 @@ impl Recipe {
 
         // Acquire locks.
         let mut podverse_config_guard = self.podverse_config.write().await;
-        let mut service_guard = self.service.write().await;
+        let mut service_guard = self.proxy_service.write().await;
 
         // Update podverse config.
         *podverse_config_guard = new_podverse_config;
         // Update service.
-        *service_guard =
-            Self::_make_svc(new_podset, self.session_secret_token.clone(), self.dev_mode);
+        *service_guard = Self::_make_proxy_svc(
+            new_podset,
+            self.proxy_session_secret_token.clone(),
+            self.dev_mode,
+        );
 
         // Drop guards.
         drop(service_guard);

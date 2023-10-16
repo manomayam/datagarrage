@@ -39,8 +39,8 @@ pub struct StorageSpaceConfig {
 /// Storage config struct.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LRcpStorageConfig {
-    /// Config of space to be proxied.
-    pub proxy_to_space: StorageSpaceConfig,
+    /// Config of space.
+    pub space: StorageSpaceConfig,
 
     /// Repo config.
     pub repo: LRcpRepoConfig,

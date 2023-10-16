@@ -53,7 +53,7 @@ pub async fn build_storage(config: LRcpStorageConfig) -> Result<LRcpStorage, Box
         e
     })?;
 
-    let space_config = &config.proxy_to_space;
+    let space_config = &config.space;
     let st_descr_uri = format!("{}_/description.ttl", space_config.root_uri.as_str())
         .as_str()
         .parse()

@@ -1099,42 +1099,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "datagarrage"
-version = "0.0.0"
-dependencies = [
- "futures",
- "http",
- "http-api-problem",
- "http_uri",
- "hyper",
- "manas_http",
- "manas_podverse",
- "manas_repo_layers",
- "manas_repo_opendal",
- "manas_server",
- "manas_space",
- "manas_storage",
- "name_locker",
- "once_cell",
- "opendal",
- "portpicker",
- "secrecy",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-localhost",
- "tauri-plugin-persisted-scope",
- "thiserror",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "uuid",
- "webid",
-]
-
-[[package]]
 name = "der"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4059,6 +4023,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf2890aaef0aa82719a50e808de264f9484b74b442e1a3a0e5ee38243ac40bdb"
 dependencies = [
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "rangam"
+version = "0.0.0"
+dependencies = [
+ "futures",
+ "http",
+ "http-api-problem",
+ "http_uri",
+ "hyper",
+ "manas_http",
+ "manas_podverse",
+ "manas_repo_layers",
+ "manas_repo_opendal",
+ "manas_server",
+ "manas_space",
+ "manas_storage",
+ "name_locker",
+ "once_cell",
+ "opendal",
+ "portpicker",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-localhost",
+ "tauri-plugin-persisted-scope",
+ "thiserror",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "uuid",
+ "webid",
 ]
 
 [[package]]

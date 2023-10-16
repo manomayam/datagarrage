@@ -9,7 +9,7 @@ use manas_server::podverse::static_::{
 };
 use manas_space::BoxError;
 
-use crate::podverse_proxy::storage::build_storage;
+use crate::podverse_manager::storage::build_storage;
 
 use super::{config::LRcpPodverseConfig, storage::LocalProxyStorageSetup};
 

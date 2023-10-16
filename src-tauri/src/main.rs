@@ -12,17 +12,17 @@ use std::sync::Arc;
 use futures::TryFutureExt;
 use http_uri::invariant::AbsoluteHttpUri;
 use manas_space::BoxError;
-use podverse_proxy::{
+use podverse_manager::{
     config::{LRcpPodConfig, LRcpPodverseConfig},
-    recipe::Recipe,
+    PodverseManager,
 };
 use secrecy::ExposeSecret;
 use state::AppState;
-use tauri::{utils::config::AppUrl, WindowBuilder, WindowUrl};
+use tauri::{utils::config::AppUrl, AppHandle, Manager, WindowBuilder, WindowUrl};
 use tracing::error;
 
 // pub mod command;
-pub mod podverse_proxy;
+pub mod podverse_manager;
 pub mod state;
 
 #[tauri::command]
@@ -33,16 +33,15 @@ fn greet(name: &str) -> String {
 /// Get the podverse proxy endpoint.
 #[tauri::command]
 fn podverse_proxy_endpoint(state: tauri::State<AppState>) -> AbsoluteHttpUri {
-    // "Rama Rama".into()
-    state.podverse.endpoint().clone()
+    state.podverse_manager.proxy_endpoint().clone()
 }
 
 /// Get the podverse proxy secret token.
 #[tauri::command]
-fn podverse_proxy_secret_token(state: tauri::State<AppState>) -> String {
+fn podverse_proxy_session_secret_token(state: tauri::State<AppState>) -> String {
     state
-        .podverse
-        .session_secret_token()
+        .podverse_manager
+        .proxy_session_secret_token()
         .expose_secret()
         .clone()
 }
@@ -50,7 +49,7 @@ fn podverse_proxy_secret_token(state: tauri::State<AppState>) -> String {
 /// Get the podverse config.
 #[tauri::command]
 async fn podverse_config(state: tauri::State<'_, AppState>) -> Result<LRcpPodverseConfig, String> {
-    Ok(state.podverse.podverse_config().await.clone())
+    Ok(state.podverse_manager.podverse_config().await.clone())
 }
 
 /// Provision a new proxy pods.
@@ -58,12 +57,29 @@ async fn podverse_config(state: tauri::State<'_, AppState>) -> Result<LRcpPodver
 async fn provision_proxy_pod(
     new_pod_config: LRcpPodConfig,
     state: tauri::State<'_, AppState>,
+    app_handle: AppHandle,
 ) -> Result<(), String> {
     state
-        .podverse
+        .podverse_manager
         .provision_pod(new_pod_config)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    emit_podverse_config_change_event(&state, &app_handle).await?;
+    Ok(())
+}
+
+/// Emit an event to all windows notifying podverse config change.
+async fn emit_podverse_config_change_event(
+    state: &tauri::State<'_, AppState>,
+    app_handle: &AppHandle,
+) -> Result<(), String> {
+    app_handle
+        .emit_all(
+            "podverse_config_change",
+            state.podverse_manager.podverse_config().await.clone(),
+        )
+        .map_err(|e| format!("Error in emitting config change event.{e}"))
 }
 
 #[tokio::main]
@@ -77,26 +93,24 @@ async fn main() -> Result<(), BoxError> {
     // rewrite the config so the IPC is enabled on this URL
     context.config_mut().build.dist_dir = AppUrl::Url(window_url.clone());
 
-    let podverse_recipe = Arc::new(
-        Recipe::new(Arc::new(context.config().clone()), cfg!(dev))
+    let podverse_manager = Arc::new(
+        PodverseManager::new(Arc::new(context.config().clone()), cfg!(dev))
             .inspect_err(|e| error!("Error in initializing the recipe. {e}"))
             .await?,
     );
 
-    // println!("recipe: {:?}", podverse_recipe);
-
-    // Span podverse recipe.
-    tokio::spawn(podverse_recipe.serve());
+    // Span podverse proxy.
+    tokio::spawn(podverse_manager.serve_proxy());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_localhost::Builder::new(port).build())
         .manage(AppState {
-            podverse: podverse_recipe.clone(),
+            podverse_manager: podverse_manager.clone(),
         })
         .invoke_handler(tauri::generate_handler![
             podverse_proxy_endpoint,
-            podverse_proxy_secret_token,
+            podverse_proxy_session_secret_token,
             podverse_config,
             provision_proxy_pod,
             greet,

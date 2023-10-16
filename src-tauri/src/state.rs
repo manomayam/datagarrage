@@ -2,11 +2,11 @@
 
 use std::sync::Arc;
 
-use crate::podverse_proxy::recipe::Recipe;
+use crate::podverse_manager::PodverseManager;
 
 /// A struct to represent app state.
 #[derive(Debug)]
 pub struct AppState {
-    /// Podverse proxy recipe.
-    pub podverse: Arc<Recipe>,
+    /// Podverse manager.
+    pub podverse_manager: Arc<PodverseManager>,
 }

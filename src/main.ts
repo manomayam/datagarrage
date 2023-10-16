@@ -1,20 +1,15 @@
-import { invoke } from "@tauri-apps/api/tauri";
+import { podverseConfig, PODVERSE_PROXY_ENDPOINT, PODVERSE_PROXY_SESSION_SECRET_TOKEN,provisionProxyPod } from './podverse_manager';
 
 async function logPodverseProxyInfo() {
-    console.log("Greet");
-    console.log(invoke("greet", { name: "Rama" }));
-
-    let endpoint = await invoke("podverse_proxy_endpoint");
-    let secret_token = await invoke("podverse_proxy_secret_token");
-    let config = await invoke("podverse_config");
-
     console.log({
-        endpoint,
-        secret_token,
-        config,
+        podverseConfig,
+        PODVERSE_PROXY_ENDPOINT,
+        PODVERSE_PROXY_SECRET_SESSION_TOKEN: PODVERSE_PROXY_SESSION_SECRET_TOKEN,
     });
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-    logPodverseProxyInfo()
-});
+await logPodverseProxyInfo();
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+window.provision = provisionProxyPod;

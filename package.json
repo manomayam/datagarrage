@@ -1,5 +1,5 @@
 {
-  "name": "datagarrage",
+  "name": "rangam",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,13 +10,20 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.5.0"
+    "@tauri-apps/api": "^1.5.0",
+    "mashlib": "^1.8.8",
+    "workbox-window": "^7.0.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0",
+    "@types/node": "^20.8.5",
+    "@typescript-eslint/eslint-plugin": "^6.7.5",
+    "@typescript-eslint/parser": "^6.7.5",
+    "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-tsdoc": "^0.2.17",
     "prettier": "3.0.3",
-    "typescript": "^5.0.2",
+    "typescript": "^5.2.2",
     "vite": "^4.4.4"
   }
 }

@@ -1,42 +1,40 @@
 {
-    "name": "Tauri Dev Environment",
-    "dockerFile": "Dockerfile",
-    "features": {
-        "ghcr.io/devcontainers/features/desktop-lite:1": {}
-    },
-    "customizations": {
-        "vscode": {
-            "settings": {
-                "terminal.integrated.shell.linux": "/bin/bash"
-            },
-            "extensions": [
-                "esbenp.prettier-vscode",
-                "dbaeumer.vscode-eslint",
-                "tauri-apps.tauri-vscode",
-                "streetsidesoftware.code-spell-checker",
-                "serayuzgur.crates",
-                "tamasfe.even-better-toml",
-                "christian-kohler.npm-intellisense",
-                "Swellaby.vscode-rust-test-adapter",
-                "rust-lang.rust-analyzer",
-                "AiryShift.spaces-inside-braces",
-                "ms-vscode.test-adapter-converter",
-                "hbenl.vscode-test-explorer",
-                "redhat.vscode-yaml"
-            ]
-        }
-    },
-    "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/workspace/${localWorkspaceFolderBasename},type=bind",
-    "workspaceFolder": "/home/dev/workspace/${localWorkspaceFolderBasename}",
-    "forwardPorts": [
-        6080, 5901
-    ],
-    "portsAttributes": {
-        "6080": {
-            "label": "desktop"
-        },
-        "5901":{
-            "label": "desktop-vnc"
-        }
+  "name": "Tauri Dev Environment",
+  "dockerFile": "Dockerfile",
+  "features": {
+    "ghcr.io/devcontainers/features/desktop-lite:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+      },
+      "extensions": [
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "tauri-apps.tauri-vscode",
+        "streetsidesoftware.code-spell-checker",
+        "serayuzgur.crates",
+        "tamasfe.even-better-toml",
+        "christian-kohler.npm-intellisense",
+        "Swellaby.vscode-rust-test-adapter",
+        "rust-lang.rust-analyzer",
+        "AiryShift.spaces-inside-braces",
+        "ms-vscode.test-adapter-converter",
+        "hbenl.vscode-test-explorer",
+        "redhat.vscode-yaml"
+      ]
     }
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/workspace/${localWorkspaceFolderBasename},type=bind",
+  "workspaceFolder": "/home/dev/workspace/${localWorkspaceFolderBasename}",
+  "forwardPorts": [6080, 5901],
+  "portsAttributes": {
+    "6080": {
+      "label": "desktop"
+    },
+    "5901": {
+      "label": "desktop-vnc"
+    }
+  }
 }
