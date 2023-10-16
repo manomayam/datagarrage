@@ -4029,6 +4029,7 @@ dependencies = [
 name = "rangam"
 version = "0.0.0"
 dependencies = [
+ "form_urlencoded",
  "futures",
  "http",
  "http-api-problem",

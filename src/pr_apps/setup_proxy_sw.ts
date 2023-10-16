@@ -5,15 +5,19 @@
 import { Workbox } from "workbox-window";
 import { PODVERSE_CONFIG_CHANGE_EVENT, PODVERSE_PROXY_ENDPOINT, PODVERSE_PROXY_SESSION_SECRET_TOKEN, podverseConfig } from '../podverse_manager';
 
-console.log("In pr_apps/setup_proxy_sw.ts");
-
-
-// Name of the podverse proxy ready event.
-export const PODVERSE_PROXY_READY_EVENT = 'podverse_proxy_ready';
+console.log("Initializin podverse proxy setup.");
 
 const wb = new Workbox('/pr_apps/proxy_sw.js');
 
-console.log(await wb.register());
+await wb.register();
+
+const swLogch = new BroadcastChannel("sw_log");
+
+window.swLogch = swLogch;
+
+swLogch.addEventListener("message", (event) => {
+    console.log("SW_LOG", event.data.arg1, event.data.arg2);
+});
 
 window.addEventListener(PODVERSE_CONFIG_CHANGE_EVENT, () => {
     wb.messageSW({
@@ -32,6 +36,4 @@ await wb.messageSW({
     }
 });
 
-console.log("In pr_apps/setup_proxy_sw.ts message sent", {
-    podverseConfig: podverseConfig(),
-});
+console.log("Podverse proxy setup complete.");

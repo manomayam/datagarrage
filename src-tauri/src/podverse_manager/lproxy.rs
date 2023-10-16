@@ -1,7 +1,10 @@
 //! I provide implementation of local pod proxy service layer.
 //!
 
-use std::task::{Context, Poll};
+use std::{
+    collections::HashMap,
+    task::{Context, Poll},
+};
 
 use futures::future::{self, Either, Ready};
 use http::{Request, Response, StatusCode};
@@ -42,10 +45,12 @@ where
     }
 
     fn call(&mut self, mut req: Request<Body>) -> Self::Future {
-        let headers = req.headers();
-        if !headers
-            .get("x-local-session-token")
-            .and_then(|token| token.to_str().ok())
+        let q_params = form_urlencoded::parse(req.uri().query().unwrap_or("").as_bytes())
+            .into_owned()
+            .collect::<HashMap<_, _>>();
+
+        if !q_params
+            .get("token")
             .is_some_and(|token_str| self.config.secret_token.expose_secret() == token_str)
         {
             error!("Invalid secret token.");
@@ -58,10 +63,9 @@ where
             .into_hyper_response())));
         }
 
-        if let Some(original_res_uri) = headers
-            .get("x-original-resource")
-            .and_then(|hv| hv.to_str().ok())
-            .and_then(|res_uri_str| AbsoluteHttpUri::try_new_from(res_uri_str).ok())
+        if let Some(original_res_uri) = q_params
+            .get("res")
+            .and_then(|res_uri_str| AbsoluteHttpUri::try_new_from(res_uri_str.as_str()).ok())
         {
             req.extensions_mut().insert(original_res_uri);
             // Delegate to inner service.

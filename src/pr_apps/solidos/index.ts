@@ -1,7 +1,7 @@
 //@ts-nocheck
 
-// import "mashlib/dist/mash.css";
-// import "mashlib/dist/mashlib.min.js";
+import "mashlib/dist/mash.css";
+import "mashlib/dist/mashlib.min.js";
 
 import "../setup_proxy_sw.ts";
 

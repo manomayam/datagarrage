@@ -1,4 +1,4 @@
-/* global self console fetch */
+/* global self console fetch BroadcastChannel */
 
 self.addEventListener("install", function (event) {
   event.waitUntil(self.skipWaiting());
@@ -9,61 +9,86 @@ self.addEventListener("activate", (event) => {
 });
 
 let podverseProxyEndpoint;
-let podverseProxySessionToken;
+let podverseProxySessionSecretToken;
 let podverseConfig;
 
-console.log("in service worker");
+const logch = new BroadcastChannel("sw_log");
+
+function clLog(arg1, arg2) {
+  console.log("SW0_LOG", arg1, arg2);
+  logch.postMessage(JSON.parse(JSON.stringify({ arg1, arg2 })));
+}
+
+clLog("in service worker");
 
 self.addEventListener("message", (event) => {
-    console.log("message received in sw.", event);
+  clLog("message received in sw.", event);
   if (event.data.type === "PODVERSE_INFO") {
-    console.log("podverse info message received.", event);
+    clLog("podverse info message received.", event);
 
-    ({ podverseProxyEndpoint, podverseProxySessionToken, podverseConfig } =
-      event.data.payload);
+    ({
+      podverseProxyEndpoint,
+      podverseProxySessionSecretToken,
+      podverseConfig,
+    } = event.data.payload);
 
     event.ports[0].postMessage({});
   } else if (event.data.type === "PODVERSE_CONFIG_CHANGE") {
-    console.log("podverse config change message received.", event);
+    clLog("podverse config change message received.", event);
     podverseConfig = event.data.payload;
     event.ports[0].postMessage({});
   }
 });
 
-// function isProxiedUri(uri) {
-//   return podverseConfig.pods.some((pod) =>
-//     uri.startsWith(pod.storage.space.root_uri),
-//   );
-// }
+function isProxiedUri(uri) {
+    clLog("in isProxiedUri");
+  let isProxied = podverseConfig.pods.some((pod) =>
+    uri.startsWith(pod.storage.space.root_uri),
+  );
+  clLog({ uri, isProxied });
+  return isProxied;
+}
 
-// function modifyRequest(request) {
+function modifyRequest(request) {
 //   const headers = {};
 //   for (let entry of request.headers) {
 //     headers[entry[0]] = headers[entry[1]];
 //   }
-//   headers["x-local-session-token"] = podverseProxySessionToken;
-//   headers["x-original-resource"] = request.uri;
+//   headers["x-local-session-token"] = podverseProxySessionSecretToken;
+//   headers["x-original-resource"] = request.url;
 
-//   // eslint-disable-next-line no-undef
-//   return new Request(podverseProxyEndpoint, {
-//     method: request.method,
-//     body: request.body,
-//     headers,
-//     cache: request.cache,
-//     mode: request.mode,
-//     credentials: request.credentials,
-//     redirect: request.redirect,
-//   });
-// }
+  let pUri = new URL(podverseProxyEndpoint);
+  pUri.searchParams.append("res", request.url);
+  pUri.searchParams.append("token", podverseProxySessionSecretToken);
 
-// self.addEventListener("fetch", (event) => {
-//   let request =
-//     typeof podverseConfig == "undefined" ||
-//     typeof podverseProxyEndpoint == "undefined" ||
-//     typeof podverseProxySessionToken == "undefined" ||
-//     !isProxiedUri(event.request.uri)
-//       ? event.request
-//       : modifyRequest(event.request);
+  // eslint-disable-next-line no-undef
+  return new Request(pUri, {
+    method: request.method,
+    body: request.body,
+    headers: request.headers,
+    cache: request.cache,
+    mode: request.mode,
+    credentials: request.credentials,
+    redirect: request.redirect,
+  });
+}
 
-//   event.respondWith(fetch(request));
-// });
+self.addEventListener("fetch", (event) => {
+  clLog("Received fetch event.", event.request.url);
+    clLog({
+      podverseConfig,
+      podverseProxyEndpoint,
+      podverseProxySessionSecretToken,
+    });
+  let request =
+    typeof podverseConfig == "undefined" ||
+    typeof podverseProxyEndpoint == "undefined" ||
+    typeof podverseProxySessionSecretToken == "undefined" ||
+    !isProxiedUri(event.request.url)
+      ? event.request
+      : modifyRequest(event.request);
+
+  clLog("Resolved request: ", request);
+
+  event.respondWith(fetch(request));
+});
