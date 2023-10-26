@@ -41,7 +41,7 @@ self.addEventListener("message", (event) => {
 });
 
 function isProxiedUri(uri) {
-    clLog("in isProxiedUri");
+  clLog("in isProxiedUri");
   let isProxied = podverseConfig.pods.some((pod) =>
     uri.startsWith(pod.storage.space.root_uri),
   );
@@ -49,13 +49,13 @@ function isProxiedUri(uri) {
   return isProxied;
 }
 
-function modifyRequest(request) {
-//   const headers = {};
-//   for (let entry of request.headers) {
-//     headers[entry[0]] = headers[entry[1]];
-//   }
-//   headers["x-local-session-token"] = podverseProxySessionSecretToken;
-//   headers["x-original-resource"] = request.url;
+async function modifyRequest(request) {
+  //   const headers = {};
+  //   for (let entry of request.headers) {
+  //     headers[entry[0]] = headers[entry[1]];
+  //   }
+  //   headers["x-local-session-token"] = podverseProxySessionSecretToken;
+  //   headers["x-original-resource"] = request.url;
 
   let pUri = new URL(podverseProxyEndpoint);
   pUri.searchParams.append("res", request.url);
@@ -64,7 +64,7 @@ function modifyRequest(request) {
   // eslint-disable-next-line no-undef
   return new Request(pUri, {
     method: request.method,
-    body: request.body,
+    body: ['PUT', 'POST', 'PATCH', 'DELETE'].includes(request.method) ? await request.blob() : undefined,
     headers: request.headers,
     cache: request.cache,
     mode: request.mode,
@@ -73,22 +73,25 @@ function modifyRequest(request) {
   });
 }
 
-self.addEventListener("fetch", (event) => {
-  clLog("Received fetch event.", event.request.url);
-    clLog({
-      podverseConfig,
-      podverseProxyEndpoint,
-      podverseProxySessionSecretToken,
-    });
-  let request =
+async function modFetch(request) {
+  request =
     typeof podverseConfig == "undefined" ||
     typeof podverseProxyEndpoint == "undefined" ||
     typeof podverseProxySessionSecretToken == "undefined" ||
-    !isProxiedUri(event.request.url)
-      ? event.request
-      : modifyRequest(event.request);
+    !isProxiedUri(request.url)
+      ? request
+      : await modifyRequest(request);
 
-  clLog("Resolved request: ", request);
+  return fetch(request);
+}
 
-  event.respondWith(fetch(request));
+self.addEventListener("fetch", (event) => {
+  clLog("Received fetch event.", event.request.url);
+  clLog({
+    podverseConfig,
+    podverseProxyEndpoint,
+    podverseProxySessionSecretToken,
+  });
+
+  event.respondWith(modFetch(event.request));
 });
